@@ -646,41 +646,6 @@ static ngx_str_t extract_access_token(ngx_http_request_t *request, u_char *jwt_s
     return access_token;
 }
 
-static ngx_str_t extract_scope(ngx_http_request_t *request, u_char *jwt_start)
-{
-    // Expected incoming JSON format: {"access_token":"<actual JWT>","scope":"<scope string>"}
-    ngx_str_t scope = ngx_null_string;
-
-    u_char *scope_start = ngx_strnstr(jwt_start, "\"scope\":", request->headers_out.content_length_n);
-    if (scope_start == NULL) {
-        // No scope found
-        ngx_log_error(NGX_LOG_WARN, request->connection->log, 0, "No scope found");
-        return scope;
-    } else {
-        scope_start+=8; // Move pointer beyond "scope":
-    }
-
-    // Remove any extra whitespace after the colon
-    while (isspace(*scope_start))
-    {
-        scope_start++;
-    }
-    // Remove starting quotation
-    scope_start++;
-
-    u_char *scope_end = ngx_strnstr(scope_start, "\",", request->headers_out.content_length_n - (scope_start-jwt_start));
-    if (scope_end == NULL) {
-        // No scope end found
-        ngx_log_error(NGX_LOG_WARN, request->connection->log, 0, "No scope end found");
-        return scope;
-    }
-
-    scope.data = scope_start;
-    scope.len = scope_end-scope_start;
-
-    return scope;
-}
-
 static ngx_int_t introspection_response_handler(ngx_http_request_t *request, void *data,
                                                 ngx_int_t introspection_subrequest_status_code)
 {
@@ -752,9 +717,7 @@ static ngx_int_t introspection_response_handler(ngx_http_request_t *request, voi
         return introspection_subrequest_status_code;
     }
 
-    // Extract scope. TODO: Match with configured scope and reject if missmatching. Currently only logging.
-    ngx_str_t scope = extract_scope(request, jwt_start);
-    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request->connection->log, 0, "Scope: '%V'", &scope);
+    // TODO: Extract scope and match with configured scope
 
     size_t bearer_jwt_len = BEARER_SIZE + access_token.len;
 
